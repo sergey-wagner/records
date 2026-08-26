@@ -1,3 +1,28 @@
+Unreleased
+==========
+
+- **Fixed:** ``Database.query()``, ``Database.bulk_query()``, and
+  ``Database.bulk_query_file()`` now commit immediately after executing,
+  so INSERT/UPDATE/DELETE statements issued through these one-shot methods
+  persist. The v0.6.0 upgrade to SQLAlchemy 2.0+ removed legacy implicit
+  autocommit, and ``records`` never called ``.commit()`` on these paths,
+  so writes were silently discarded once the connection closed or
+  returned to the pool (`#224 <https://github.com/kennethreitz/records/issues/224>`_).
+  This restores the documented pre-2.0 behavior. ``Database.transaction()``
+  is unchanged and remains the way to group multiple statements into a
+  single atomic write, or to deliberately roll one back. This is not a
+  breaking change for any dry-run usage: writes issued via ``query()`` /
+  ``bulk_query()`` / ``bulk_query_file()`` were discarded 100% of the time
+  before this fix, so no code could have been relying on them being rolled
+  back. That said, code that (intentionally or not) depended on this
+  discard-by-default behavior -- for example, throwaway test setup or
+  exploratory scripts that issued writes via these methods expecting them
+  *not* to persist -- will now observe different, persisting behavior.
+  Also fixed: a failed statement issued through these methods no longer
+  leaves a dangling implicit transaction on a reused ``Connection``, which
+  previously could cause the *next* successful write on that same
+  connection to silently skip its commit.
+
 v0.6.0 (04-29-2024)
 ===================
 

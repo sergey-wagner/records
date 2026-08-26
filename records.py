@@ -309,13 +309,18 @@ class Database(object):
     def query(self, query, fetchall=False, **params):
         """Executes the given SQL query against the Database. Parameters can,
         optionally, be provided. Returns a RecordCollection, which can be
-        iterated over to get result rows as dictionaries.
+        iterated over to get result rows as dictionaries. A successful write
+        (INSERT/UPDATE/DELETE) is committed immediately, so it persists
+        outside of an explicit ``Database.transaction()``.
         """
         with self.get_connection(True) as conn:
             return conn.query(query, fetchall, **params)
 
     def bulk_query(self, query, *multiparams):
-        """Bulk insert or update."""
+        """Bulk insert or update. A successful write is committed
+        immediately, so it persists outside of an explicit
+        ``Database.transaction()``.
+        """
 
         with self.get_connection() as conn:
             conn.bulk_query(query, *multiparams)
@@ -327,7 +332,10 @@ class Database(object):
             return conn.query_file(path, fetchall, **params)
 
     def bulk_query_file(self, path, *multiparams):
-        """Like Database.bulk_query, but takes a filename to load a query from."""
+        """Like Database.bulk_query, but takes a filename to load a query
+        from. A successful write is committed immediately, so it persists
+        outside of an explicit ``Database.transaction()``.
+        """
 
         with self.get_connection() as conn:
             conn.bulk_query_file(path, *multiparams)
@@ -374,13 +382,49 @@ class Connection(object):
     def query(self, query, fetchall=False, **params):
         """Executes the given SQL query against the connected Database.
         Parameters can, optionally, be provided. Returns a RecordCollection,
-        which can be iterated over to get result rows as dictionaries.
+        which can be iterated over to get result rows as dictionaries. When
+        not called inside an explicit ``Connection.transaction()``, a
+        successful write (INSERT/UPDATE/DELETE) is committed immediately, so
+        it persists even on a connection reused across multiple calls.
         """
 
+        # If a transaction (explicit, via Connection.transaction()/begin())
+        # is already in progress on this connection, execute() will just
+        # join it -- and it's not ours to commit; the caller owns that via
+        # tx.commit()/tx.rollback(). Only a fresh/no-transaction connection
+        # gets auto-committed here. Checked *before* execute(), since
+        # execute() itself auto-begins an (implicit) transaction if none is
+        # active yet, which would make this check always true afterwards.
+        in_explicit_transaction = self._conn.in_transaction()
+
         # Execute the given query.
-        cursor = self._conn.execute(
-            text(query).bindparams(**params)
-        )  # TODO: PARAMS GO HERE
+        try:
+            cursor = self._conn.execute(
+                text(query).bindparams(**params)
+            )  # TODO: PARAMS GO HERE
+        except Exception:
+            # execute() auto-begins an implicit transaction even on
+            # failure. If we're not inside an explicit transaction, that
+            # implicit transaction is ours to clean up -- otherwise it's
+            # left dangling on the underlying DBAPI connection, and the
+            # *next* call on a reused Connection sees in_transaction() ==
+            # True and wrongly assumes it's inside caller-managed explicit
+            # transaction, skipping its own commit (reproducing GH #224).
+            # When in_explicit_transaction was True, this is caller-managed
+            # (their tx.rollback()/except handles it) -- leave it alone.
+            if not in_explicit_transaction:
+                self._conn.rollback()
+            raise
+
+        # Commit immediately so writes (INSERT/UPDATE/DELETE) persist even
+        # outside of an explicit Database.transaction(). SQLAlchemy 2.0
+        # removed implicit autocommit, so without this the write is rolled
+        # back once the connection closes/returns to the pool (GH #224).
+        # Skipped when Connection.transaction() is managing this connection
+        # (see above) so Database.transaction()'s commit/rollback semantics
+        # stay unchanged.
+        if not in_explicit_transaction:
+            self._conn.commit()
 
         # Row-by-row Record generator.
         row_gen = iter(Record([], []))
@@ -398,9 +442,30 @@ class Connection(object):
         return results
 
     def bulk_query(self, query, *multiparams):
-        """Bulk insert or update."""
+        """Bulk insert or update. When not called inside an explicit
+        ``Connection.transaction()``, a successful write is committed
+        immediately, so it persists even on a connection reused across
+        multiple calls.
+        """
 
-        self._conn.execute(text(query), *multiparams)
+        # See Connection.query() for why this is checked before execute().
+        in_explicit_transaction = self._conn.in_transaction()
+
+        try:
+            self._conn.execute(text(query), *multiparams)
+        except Exception:
+            # See Connection.query() for why this rollback is needed to
+            # avoid leaving dangling implicit-transaction state for the
+            # next call on a reused connection.
+            if not in_explicit_transaction:
+                self._conn.rollback()
+            raise
+
+        # Commit immediately so the bulk write persists (GH #224); see
+        # Connection.query() for the full rationale, including why this is
+        # skipped inside an explicit Connection.transaction().
+        if not in_explicit_transaction:
+            self._conn.commit()
 
     def query_file(self, path, fetchall=False, **params):
         """Like Connection.query, but takes a filename to load a query from."""
@@ -422,7 +487,9 @@ class Connection(object):
 
     def bulk_query_file(self, path, *multiparams):
         """Like Connection.bulk_query, but takes a filename to load a query
-        from.
+        from. When not called inside an explicit ``Connection.transaction()``,
+        a successful write is committed immediately, so it persists even on
+        a connection reused across multiple calls.
         """
 
         # If path doesn't exists
@@ -437,7 +504,26 @@ class Connection(object):
         with open(path) as f:
             query = f.read()
 
-        self._conn.execute(text(query), *multiparams)
+        # See Connection.query() for why this is checked before execute().
+        in_explicit_transaction = self._conn.in_transaction()
+
+        try:
+            self._conn.execute(text(query), *multiparams)
+        except Exception:
+            # See Connection.query() for why this rollback is needed to
+            # avoid leaving dangling implicit-transaction state for the
+            # next call on a reused connection.
+            if not in_explicit_transaction:
+                self._conn.rollback()
+            raise
+
+        # Commit immediately so the bulk write persists (GH #224). This
+        # method duplicates bulk_query()'s raw execute() rather than
+        # delegating to it, so it needs its own commit call -- skipped
+        # inside an explicit Connection.transaction(), same as query()/
+        # bulk_query().
+        if not in_explicit_transaction:
+            self._conn.commit()
 
     def transaction(self):
         """Returns a transaction object. Call ``commit`` or ``rollback``
