@@ -26,6 +26,17 @@ db = records.Database('postgres://...')
 rows = db.query('select * from active_users')    # or db.query_file('sqls/active-users.sql')
 ```
 
+If you'd rather have the connection closed for you automatically, `Database`
+also supports the context-manager protocol:
+
+``` python
+with records.Database('postgres://...') as db:
+    rows = db.query('select * from active_users')
+    for r in rows:
+        print(r.name, r.user_email)
+# db is closed here, even if the query raised -- consume rows before the block exits
+```
+
 Grab one row at a time:
 
 ``` python

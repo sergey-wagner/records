@@ -1,3 +1,7 @@
+- source_spec: `_bmad-output/implementation-artifacts/1-3-documented-usage-pattern.md`
+  summary: README.md and README.rst duplicate the same usage examples with no single source of truth, so they can (and already had, before this story's fix) drift apart wording- or formatting-wise.
+  evidence: Pre-existing structure of this repo (two independently-maintained README files), not introduced by this story; flagged by the blind-hunter review layer during Story 1.3's review, which also caught one instance of drift (a missing RST blank line) that this story fixed.
+
 - source_spec: `_bmad-output/implementation-artifacts/1-2-regression-tests-for-context-manager-lifecycle.md`
   summary: The shared `db` test fixture (`tests/conftest.py`) is only parametrized with sqlite in-memory — the Postgres case is present but commented out — so no test in the suite (including Story 1.2's new regression tests) exercises a real pooled/networked connection, the backend where a leaked connection is most consequential.
   evidence: Pre-existing limitation of the whole test suite (not introduced by Story 1.1 or 1.2); flagged by the blind-hunter review layer during Story 1.2's review.
