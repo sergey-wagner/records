@@ -49,6 +49,14 @@ nodes:
         GitHub-Issue-Links) dem Menschen zur Freigabe, BEVOR irgendein Code
         geschrieben wird. Das ist die wichtigste Weiche im gesamten
         Workflow — hier wird über den Zuschnitt der Arbeit entschieden.
+
+        Feedback des Menschen aus der letzten Runde (leer, falls erste
+        Runde): "$LOOP_USER_INPUT"
+
+        Falls das Feedback eine Entscheidung oder Anweisung enthält, setze
+        sie JETZT um (z. B. Repo-Einstellungen ändern, Issues anlegen),
+        BEVOR du erneut präsentierst. Wiederhole nicht einfach dieselbe
+        Frage, wenn der Mensch bereits geantwortet hat.
       until: APPROVED
       max_iterations: 5
       interactive: true
@@ -90,6 +98,12 @@ nodes:
         Präsentiere eine Zusammenfassung aller umgesetzten Subtasks, den
         vollständigen Diff und die Testergebnisse für die finale
         menschliche Freigabe vor dem PR.
+
+        Feedback des Menschen aus der letzten Runde (leer, falls erste
+        Runde): "$LOOP_USER_INPUT"
+
+        Falls das Feedback Änderungswünsche enthält, setze sie JETZT um,
+        bevor du erneut präsentierst.
       until: APPROVED
       max_iterations: 5
       interactive: true
