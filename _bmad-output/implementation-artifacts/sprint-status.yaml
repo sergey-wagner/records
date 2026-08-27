@@ -40,5 +40,5 @@ development_status:
   1-2-regression-tests-for-context-manager-lifecycle: review
   1-3-documented-usage-pattern: review
   1-4-complete-type-hints-on-the-public-api: review
-  1-5-ci-type-check-enforcement: backlog
+  1-5-ci-type-check-enforcement: review
   epic-1-retrospective: optional

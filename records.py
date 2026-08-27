@@ -6,15 +6,15 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from inspect import isclass
 from types import TracebackType
-from typing import Any, Iterator, List, Optional, Sequence, Type, Union
+from typing import Any, Iterator, List, Optional, Sequence, Type, Union, cast
 
-import tablib
-from docopt import docopt
+import tablib  # type: ignore[import-untyped]
+from docopt import docopt  # type: ignore[import-untyped]
 from sqlalchemy import create_engine, exc, inspect, text
 from sqlalchemy.engine import Connection as SAConnection, Engine, Transaction
 
 
-def isexception(obj):
+def isexception(obj):  # type: ignore[no-untyped-def]
     """Given an object, return a boolean indicating whether it is an instance
     or subclass of :py:class:`Exception`.
     """
@@ -46,7 +46,7 @@ class Record(object):
         return self._values
 
     def __repr__(self) -> str:
-        return "<Record {}>".format(self.export("json")[1:-1])
+        return "<Record {}>".format(cast(str, self.export("json"))[1:-1])
 
     def __getitem__(self, key: Union[int, str]) -> Any:
         # Support for index-based lookup.
@@ -92,7 +92,7 @@ class Record(object):
         return OrderedDict(items) if ordered else dict(items)
 
     @property
-    def dataset(self):
+    def dataset(self) -> tablib.Dataset:
         """A Tablib Dataset containing the row."""
         data = tablib.Dataset()
         data.headers = self.keys()
@@ -112,7 +112,7 @@ class RecordCollection(object):
 
     def __init__(self, rows: Iterator[Record]) -> None:
         self._rows = rows
-        self._all_rows = []
+        self._all_rows: List[Record] = []
         self.pending: bool = True
 
     def __repr__(self) -> str:
@@ -126,7 +126,7 @@ class RecordCollection(object):
             # Other code may have iterated between yields,
             # so always check the cache.
             if i < len(self):
-                yield self[i]
+                yield cast(Record, self[i])
             else:
                 # Throws StopIteration when done.
                 # Prevent StopIteration bubbling from generator, following https://www.python.org/dev/peps/pep-0479/
@@ -152,7 +152,7 @@ class RecordCollection(object):
         is_int = isinstance(key, int)
 
         # Convert RecordCollection[1] into slice.
-        if is_int:
+        if isinstance(key, int):
             key = slice(key, key + 1)
 
         while key.stop is None or len(self) < key.stop:
@@ -175,7 +175,7 @@ class RecordCollection(object):
         return self.dataset.export(format, **kwargs)
 
     @property
-    def dataset(self):
+    def dataset(self) -> tablib.Dataset:
         """A Tablib Dataset representation of the RecordCollection."""
         # Create a new Tablib Dataset.
         data = tablib.Dataset()
@@ -186,7 +186,7 @@ class RecordCollection(object):
             return data
 
         # Set the column names as headers on Tablib Dataset.
-        first = self[0]
+        first = cast(Record, self[0])
 
         data.headers = first.keys()
         for row in self.all():
@@ -212,7 +212,10 @@ class RecordCollection(object):
         return rows
 
     def as_dict(self, ordered: bool = False) -> Union[List[dict], List[OrderedDict]]:
-        return self.all(as_dict=not (ordered), as_ordereddict=ordered)
+        return cast(
+            Union[List[dict], List[OrderedDict]],
+            self.all(as_dict=not (ordered), as_ordereddict=ordered),
+        )
 
     def first(
         self, default: Any = None, as_dict: bool = False, as_ordereddict: bool = False
@@ -380,7 +383,7 @@ class Connection(object):
             self._conn.close()
         self.open = False
 
-    def _close_on_exception(self):
+    def _close_on_exception(self):  # type: ignore[no-untyped-def]
         """Force-closes the underlying connection on an exception exit.
 
         Regardless of close_with_result, an exception means results won't
@@ -489,7 +492,7 @@ class Connection(object):
         return self._conn.begin()
 
 
-def _reduce_datetimes(row):
+def _reduce_datetimes(row):  # type: ignore[no-untyped-def]
     """Receives a row, converts datetimes to strings."""
 
     row = list(row)
@@ -500,7 +503,7 @@ def _reduce_datetimes(row):
     return tuple(row)
 
 
-def cli():
+def cli():  # type: ignore[no-untyped-def]
     supported_formats = "csv tsv json yaml html xls xlsx dbf latex ods".split()
     formats_lst = ", ".join(supported_formats)
     cli_docs = """Records: SQL for Humans™
@@ -593,7 +596,7 @@ Notes:
         exit(60)
 
 
-def print_bytes(content):
+def print_bytes(content):  # type: ignore[no-untyped-def]
     try:
         stdout.buffer.write(content)
     except AttributeError:

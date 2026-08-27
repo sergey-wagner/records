@@ -32,3 +32,9 @@ jobs:
 
     - name: Test with pytest
       run: pytest
+
+    - name: Type-check with mypy
+      if: matrix.python-version == '3.12'
+      run: |
+        pip install mypy==2.3.1
+        mypy --disallow-untyped-defs records.py
