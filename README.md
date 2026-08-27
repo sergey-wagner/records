@@ -22,9 +22,13 @@ We know how to write SQL, so let's send some to our database:
 ``` python
 import records
 
-db = records.Database('postgres://...')
-rows = db.query('select * from active_users')    # or db.query_file('sqls/active-users.sql')
+with records.Database('postgres://...') as db:
+    rows = db.query('select * from active_users')    # or db.query_file('sqls/active-users.sql')
 ```
+
+Using `Database` as a context manager is the recommended way to work with
+it: the connection pool is closed automatically when the `with` block
+exits, even if an exception is raised inside it.
 
 Grab one row at a time:
 
@@ -75,6 +79,10 @@ Other options include `rows.as_dict()` and `rows.as_dict(ordered=True)`.
 -   Transactions: `t = Database.transaction(); t.commit()`.
 -   Bulk actions: `Database.bulk_query()` &
     `Database.bulk_query_file()`.
+-   `Database` and `Connection` are context managers, and close cleanly
+    on exit, even if an exception is raised.
+-   Fully type hinted (`py.typed`); type checkers like mypy can verify
+    your usage of Records.
 
 Records is proudly powered by [SQLAlchemy](http://www.sqlalchemy.org)
 and [Tablib](https://tablib.readthedocs.io/en/latest/).
