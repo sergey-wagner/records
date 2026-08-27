@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-27-2026 12:21
-last_updated: 08-27-2026 13:18
+last_updated: 08-27-2026 13:22
 project: records-repo
 project_key: NOKEY
 tracking_system: file-system
@@ -39,6 +39,6 @@ development_status:
   1-1-exception-safe-connection-cleanup: review
   1-2-regression-tests-for-context-manager-lifecycle: review
   1-3-documented-usage-pattern: review
-  1-4-complete-type-hints-on-the-public-api: backlog
+  1-4-complete-type-hints-on-the-public-api: review
   1-5-ci-type-check-enforcement: backlog
   epic-1-retrospective: optional
