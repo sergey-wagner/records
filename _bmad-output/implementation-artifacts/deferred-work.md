@@ -1,0 +1,3 @@
+- source_spec: `_bmad-output/implementation-artifacts/1-1-exception-safe-connection-cleanup.md`
+  summary: Connection-cleanup calls (`Connection.close()`, `Connection._close_on_exception()`, `Database.transaction()`'s `finally: conn.close()`) are not wrapped in try/except, so a cleanup-time exception from `self._conn.close()` itself can mask the original in-flight exception being handled.
+  evidence: Pre-existing pattern across records.py (present in `close()` and `Database.transaction()` before this story), extended by this story's diff to one more branch (the exception-exit path for `close_with_result=True`) rather than introduced as a new risk category. Flagged independently by the edge-case-hunter and blind-hunter review layers during Story 1.1's review.

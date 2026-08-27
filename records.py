@@ -362,11 +362,27 @@ class Connection(object):
             self._conn.close()
         self.open = False
 
+    def _close_on_exception(self):
+        """Force-closes the underlying connection on an exception exit.
+
+        Regardless of close_with_result, an exception means results won't
+        be consumed to trigger the lazy close, so the connection must be
+        force-closed here instead. For close_with_result=False connections
+        this is equivalent to close(); the guard keeps it a safe no-op
+        either way.
+        """
+        if not self._conn.closed:
+            self._conn.close()
+        self.open = False
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc, val, traceback):
-        self.close()
+        if exc is not None:
+            self._close_on_exception()
+        else:
+            self.close()
 
     def __repr__(self):
         return "<Connection open={}>".format(self.open)

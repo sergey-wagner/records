@@ -1,3 +1,11 @@
+Unreleased
+==========
+
+- Fix: ``Connection`` opened with ``close_with_result=True`` (used internally
+  by ``Database.query()`` and ``Database.query_file()``) now actually closes
+  the underlying connection when an exception propagates out of a ``with``
+  block, instead of leaking it. The success path is unchanged.
+
 v0.6.0 (04-29-2024)
 ===================
 
