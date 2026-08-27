@@ -68,7 +68,7 @@ setup(
     author_email="me@kennethreitz.org",
     url="https://github.com/kennethreitz/records",
     py_modules=["records"],
-    package_data={"": ["LICENSE"]},
+    package_data={"": ["LICENSE", "py.typed"]},
     include_package_data=True,
     entry_points={
         "console_scripts": ["records=records:cli"],

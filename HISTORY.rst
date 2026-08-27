@@ -1,3 +1,18 @@
+v0.7.0 (08-27-2026)
+===================
+
+- Added complete type hints (PEP 484) to the public API of ``Record``,
+  ``RecordCollection``, ``Database`` and ``Connection``.
+- Documented and tested the ``with Database(url) as db: ...`` /
+  ``with db.get_connection() as conn: ...`` context manager idiom,
+  including exception-safe closing of connections and the pool.
+- Renamed the ``__exit__`` parameters of ``Database`` and ``Connection``
+  (``exc_type``/``exc_val``/``exc_tb``) so they no longer shadow the
+  module-level ``sqlalchemy.exc`` import.
+- Added a ``py.typed`` marker (PEP 561) and ``mypy`` CI integration so
+  downstream projects can type-check against ``records``.
+- No breaking changes to runtime behavior.
+
 v0.6.0 (04-29-2024)
 ===================
 

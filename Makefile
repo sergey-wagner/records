@@ -2,6 +2,8 @@ testall:
 	tox
 test: init
 	pipenv run pytest tests
+typecheck: init
+	pipenv run mypy records.py
 init:
 	pipenv install --skip-lock --dev
 publish:

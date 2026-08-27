@@ -5,13 +5,19 @@ from sys import stdout
 from collections import OrderedDict
 from contextlib import contextmanager
 from inspect import isclass
+from types import TracebackType
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Type, Union, overload
+from typing import OrderedDict as TOrderedDict
 
 import tablib
 from docopt import docopt
 from sqlalchemy import create_engine, exc, inspect, text
+from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Connection as SAConnection
+from sqlalchemy.engine import Transaction
 
 
-def isexception(obj):
+def isexception(obj: Any) -> bool:
     """Given an object, return a boolean indicating whether it is an instance
     or subclass of :py:class:`Exception`.
     """
@@ -27,25 +33,25 @@ class Record(object):
 
     __slots__ = ("_keys", "_values")
 
-    def __init__(self, keys, values):
+    def __init__(self, keys: Any, values: Sequence[Any]) -> None:
         self._keys = keys
         self._values = values
 
         # Ensure that lengths match properly.
         assert len(self._keys) == len(self._values)
 
-    def keys(self):
+    def keys(self) -> Any:
         """Returns the list of column names from the query."""
         return self._keys
 
-    def values(self):
+    def values(self) -> Sequence[Any]:
         """Returns the list of values from the query."""
         return self._values
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<Record {}>".format(self.export("json")[1:-1])
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Union[int, str]) -> Any:
         # Support for index-based lookup.
         if isinstance(key, int):
             return self.values()[key]
@@ -64,32 +70,34 @@ class Record(object):
 
         raise KeyError("Record contains no '{}' field.".format(key))
 
-    def __getattr__(self, key):
+    def __getattr__(self, key: str) -> Any:
         try:
             return self[key]
         except KeyError as e:
             raise AttributeError(e)
 
-    def __dir__(self):
+    def __dir__(self) -> List[str]:
         standard = dir(super(Record, self))
         # Merge standard attrs with generated ones (from column names).
         return sorted(standard + [str(k) for k in self.keys()])
 
-    def get(self, key, default=None):
+    def get(self, key: str, default: Any = None) -> Any:
         """Returns the value for a given key, or default."""
         try:
             return self[key]
         except KeyError:
             return default
 
-    def as_dict(self, ordered=False):
+    def as_dict(
+        self, ordered: bool = False
+    ) -> Union[Dict[str, Any], TOrderedDict[str, Any]]:
         """Returns the row as a dictionary, as ordered."""
         items = zip(self.keys(), self.values())
 
         return OrderedDict(items) if ordered else dict(items)
 
     @property
-    def dataset(self):
+    def dataset(self) -> tablib.Dataset:
         """A Tablib Dataset containing the row."""
         data = tablib.Dataset()
         data.headers = self.keys()
@@ -99,7 +107,7 @@ class Record(object):
 
         return data
 
-    def export(self, format, **kwargs):
+    def export(self, format: str, **kwargs: Any) -> Any:
         """Exports the row to the given format."""
         return self.dataset.export(format, **kwargs)
 
@@ -107,15 +115,15 @@ class Record(object):
 class RecordCollection(object):
     """A set of excellent Records from a query."""
 
-    def __init__(self, rows):
+    def __init__(self, rows: Iterator[Record]) -> None:
         self._rows = rows
-        self._all_rows = []
+        self._all_rows: List[Record] = []
         self.pending = True
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<RecordCollection size={} pending={}>".format(len(self), self.pending)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Record]:
         """Iterate over all rows, consuming the underlying generator
         only when necessary."""
         i = 0
@@ -133,10 +141,10 @@ class RecordCollection(object):
                     return
             i += 1
 
-    def next(self):
+    def next(self) -> Record:
         return self.__next__()
 
-    def __next__(self):
+    def __next__(self) -> Record:
         try:
             nextrow = next(self._rows)
             self._all_rows.append(nextrow)
@@ -145,34 +153,42 @@ class RecordCollection(object):
             self.pending = False
             raise StopIteration("RecordCollection contains no more rows.")
 
-    def __getitem__(self, key):
+    @overload
+    def __getitem__(self, key: int) -> Record: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> "RecordCollection": ...
+
+    def __getitem__(self, key: Union[int, slice]) -> Union[Record, "RecordCollection"]:
         is_int = isinstance(key, int)
 
         # Convert RecordCollection[1] into slice.
-        if is_int:
-            key = slice(key, key + 1)
+        if isinstance(key, int):
+            key_slice = slice(key, key + 1)
+        else:
+            key_slice = key
 
-        while key.stop is None or len(self) < key.stop:
+        while key_slice.stop is None or len(self) < key_slice.stop:
             try:
                 next(self)
             except StopIteration:
                 break
 
-        rows = self._all_rows[key]
+        rows = self._all_rows[key_slice]
         if is_int:
             return rows[0]
         else:
             return RecordCollection(iter(rows))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._all_rows)
 
-    def export(self, format, **kwargs):
+    def export(self, format: str, **kwargs: Any) -> Any:
         """Export the RecordCollection to a given format (courtesy of Tablib)."""
         return self.dataset.export(format, **kwargs)
 
     @property
-    def dataset(self):
+    def dataset(self) -> tablib.Dataset:
         """A Tablib Dataset representation of the RecordCollection."""
         # Create a new Tablib Dataset.
         data = tablib.Dataset()
@@ -192,7 +208,9 @@ class RecordCollection(object):
 
         return data
 
-    def all(self, as_dict=False, as_ordereddict=False):
+    def all(
+        self, as_dict: bool = False, as_ordereddict: bool = False
+    ) -> List[Any]:
         """Returns a list of all rows for the RecordCollection. If they haven't
         been fetched yet, consume the iterator and cache the results."""
 
@@ -206,10 +224,15 @@ class RecordCollection(object):
 
         return rows
 
-    def as_dict(self, ordered=False):
+    def as_dict(self, ordered: bool = False) -> List[Any]:
         return self.all(as_dict=not (ordered), as_ordereddict=ordered)
 
-    def first(self, default=None, as_dict=False, as_ordereddict=False):
+    def first(
+        self,
+        default: Any = None,
+        as_dict: bool = False,
+        as_ordereddict: bool = False,
+    ) -> Any:
         """Returns a single record for the RecordCollection, or `default`. If
         `default` is an instance or subclass of Exception, then raise it
         instead of returning it."""
@@ -230,7 +253,12 @@ class RecordCollection(object):
         else:
             return record
 
-    def one(self, default=None, as_dict=False, as_ordereddict=False):
+    def one(
+        self,
+        default: Any = None,
+        as_dict: bool = False,
+        as_ordereddict: bool = False,
+    ) -> Any:
         """Returns a single record for the RecordCollection, ensuring that it
         is the only record, or returns `default`. If `default` is an instance
         or subclass of Exception, then raise it instead of returning it."""
@@ -249,7 +277,7 @@ class RecordCollection(object):
                 "RecordCollection.one"
             )
 
-    def scalar(self, default=None):
+    def scalar(self, default: Any = None) -> Any:
         """Returns the first column of the first row, or `default`."""
         row = self.one()
         return row[0] if row else default
@@ -260,7 +288,7 @@ class Database(object):
     connections.
     """
 
-    def __init__(self, db_url=None, **kwargs):
+    def __init__(self, db_url: Optional[str] = None, **kwargs: Any) -> None:
         # If no db_url was provided, fallback to $DATABASE_URL.
         self.db_url = db_url or os.environ.get("DATABASE_URL")
 
@@ -268,36 +296,41 @@ class Database(object):
             raise ValueError("You must provide a db_url.")
 
         # Create an engine.
-        self._engine = create_engine(self.db_url, **kwargs)
+        self._engine: Engine = create_engine(self.db_url, **kwargs)
         self.open = True
 
-    def get_engine(self):
+    def get_engine(self) -> Engine:
         # Return the engine if open
         if not self.open:
             raise exc.ResourceClosedError("Database closed.")
         return self._engine
 
-    def close(self):
+    def close(self) -> None:
         """Closes the Database."""
         self._engine.dispose()
         self.open = False
 
-    def __enter__(self):
+    def __enter__(self) -> "Database":
         return self
 
-    def __exit__(self, exc, val, traceback):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         self.close()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<Database open={}>".format(self.open)
 
-    def get_table_names(self, internal=False, **kwargs):
+    def get_table_names(self, internal: bool = False, **kwargs: Any) -> List[str]:
         """Returns a list of table names for the connected database."""
 
         # Setup SQLAlchemy for Database inspection.
         return inspect(self._engine).get_table_names(**kwargs)
 
-    def get_connection(self, close_with_result=False):
+    def get_connection(self, close_with_result: bool = False) -> "Connection":
         """Get a connection to this Database. Connections are retrieved from a
         pool.
         """
@@ -306,7 +339,9 @@ class Database(object):
 
         return Connection(self._engine.connect(), close_with_result=close_with_result)
 
-    def query(self, query, fetchall=False, **params):
+    def query(
+        self, query: str, fetchall: bool = False, **params: Any
+    ) -> RecordCollection:
         """Executes the given SQL query against the Database. Parameters can,
         optionally, be provided. Returns a RecordCollection, which can be
         iterated over to get result rows as dictionaries.
@@ -314,26 +349,28 @@ class Database(object):
         with self.get_connection(True) as conn:
             return conn.query(query, fetchall, **params)
 
-    def bulk_query(self, query, *multiparams):
+    def bulk_query(self, query: str, *multiparams: Any) -> None:
         """Bulk insert or update."""
 
         with self.get_connection() as conn:
             conn.bulk_query(query, *multiparams)
 
-    def query_file(self, path, fetchall=False, **params):
+    def query_file(
+        self, path: str, fetchall: bool = False, **params: Any
+    ) -> RecordCollection:
         """Like Database.query, but takes a filename to load a query from."""
 
         with self.get_connection(True) as conn:
             return conn.query_file(path, fetchall, **params)
 
-    def bulk_query_file(self, path, *multiparams):
+    def bulk_query_file(self, path: str, *multiparams: Any) -> None:
         """Like Database.bulk_query, but takes a filename to load a query from."""
 
         with self.get_connection() as conn:
             conn.bulk_query_file(path, *multiparams)
 
     @contextmanager
-    def transaction(self):
+    def transaction(self) -> Iterator["Connection"]:
         """A context manager for executing a transaction on this Database."""
 
         conn = self.get_connection()
@@ -350,28 +387,37 @@ class Database(object):
 class Connection(object):
     """A Database connection."""
 
-    def __init__(self, connection, close_with_result=False):
+    def __init__(
+        self, connection: SAConnection, close_with_result: bool = False
+    ) -> None:
         self._conn = connection
         self.open = not connection.closed
         self._close_with_result = close_with_result
 
-    def close(self):
+    def close(self) -> None:
         # No need to close if this connection is used for a single result.
         # The connection will close when the results are all consumed or GCed.
         if not self._close_with_result:
             self._conn.close()
         self.open = False
 
-    def __enter__(self):
+    def __enter__(self) -> "Connection":
         return self
 
-    def __exit__(self, exc, val, traceback):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         self.close()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<Connection open={}>".format(self.open)
 
-    def query(self, query, fetchall=False, **params):
+    def query(
+        self, query: str, fetchall: bool = False, **params: Any
+    ) -> RecordCollection:
         """Executes the given SQL query against the connected Database.
         Parameters can, optionally, be provided. Returns a RecordCollection,
         which can be iterated over to get result rows as dictionaries.
@@ -397,12 +443,14 @@ class Connection(object):
 
         return results
 
-    def bulk_query(self, query, *multiparams):
+    def bulk_query(self, query: str, *multiparams: Any) -> None:
         """Bulk insert or update."""
 
         self._conn.execute(text(query), *multiparams)
 
-    def query_file(self, path, fetchall=False, **params):
+    def query_file(
+        self, path: str, fetchall: bool = False, **params: Any
+    ) -> RecordCollection:
         """Like Connection.query, but takes a filename to load a query from."""
 
         # If path doesn't exists
@@ -420,7 +468,7 @@ class Connection(object):
         # Defer processing to self.query method.
         return self.query(query=query, fetchall=fetchall, **params)
 
-    def bulk_query_file(self, path, *multiparams):
+    def bulk_query_file(self, path: str, *multiparams: Any) -> None:
         """Like Connection.bulk_query, but takes a filename to load a query
         from.
         """
@@ -439,7 +487,7 @@ class Connection(object):
 
         self._conn.execute(text(query), *multiparams)
 
-    def transaction(self):
+    def transaction(self) -> Transaction:
         """Returns a transaction object. Call ``commit`` or ``rollback``
         on the returned object as appropriate."""
 
