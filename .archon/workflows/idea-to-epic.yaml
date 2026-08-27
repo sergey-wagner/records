@@ -1,0 +1,96 @@
+# .archon/workflows/idea-to-epic.yaml
+#
+# Von der rohen Feature-Idee zu Epic-Issue + Subtask-Issues (via gh CLI) zu
+# iterativer Implementierung — testet den Anfang der SDLC-Kette, nicht nur
+# das Abarbeiten eines vorgegebenen Issues.
+
+description: >
+  Zerlegt eine Feature-Idee in ein Epic mit Subtasks, erstellt echte GitHub
+  Issues dafür, lässt den Menschen die Planung freigeben, implementiert dann
+  iterativ pro Subtask, und öffnet abschließend einen PR gegen alle Subtasks.
+
+nodes:
+  - id: plan-epic
+    prompt: |
+      Feature-Idee: "Database API modernisieren: Database soll als
+      Context-Manager nutzbar sein (`with Database(url) as db: ...`,
+      schließt automatisch), und die komplette öffentliche API (Database,
+      Connection, Record, RecordCollection) soll vollständige Type Hints
+      bekommen."
+
+      Untersuche records.py, um die betroffenen Klassen und Methoden zu
+      verstehen. Zerlege die Idee in:
+      1. Einen Epic-Titel + Epic-Beschreibung (Gesamtziel, Nutzen)
+      2. 4-6 unabhängig umsetzbare, sinnvoll granulare Subtasks (jeweils
+         Titel + kurze Beschreibung + Akzeptanzkriterium). Berücksichtige
+         Abhängigkeiten explizit (z. B. welche Subtasks parallel angehbar
+         sind, welche aufeinander aufbauen).
+
+      Schreibe das Ergebnis strukturiert nach EPIC_PLAN.md.
+
+  - id: create-issues
+    depends_on: [plan-epic]
+    prompt: |
+      Lies EPIC_PLAN.md. Erstelle via `gh issue create --repo
+      sergey-wagner/records` zunächst das Epic-Issue (Label "epic" falls
+      möglich), danach je ein Issue pro Subtask, das im Body auf die
+      Epic-Issue-Nummer verweist. Aktualisiere anschließend das Epic-Issue
+      per `gh issue edit`, sodass es eine Checkliste mit Links auf alle
+      Subtask-Issues enthält. Schreibe eine Zuordnungstabelle
+      (Subtask-Name -> Issue-Nummer) nach ISSUE_MAP.md.
+
+  - id: epic-approval
+    depends_on: [create-issues]
+    loop:
+      prompt: |
+        Präsentiere EPIC_PLAN.md und ISSUE_MAP.md (mit den echten
+        GitHub-Issue-Links) dem Menschen zur Freigabe, BEVOR irgendein Code
+        geschrieben wird. Das ist die wichtigste Weiche im gesamten
+        Workflow — hier wird über den Zuschnitt der Arbeit entschieden.
+      until: APPROVED
+      interactive: true
+
+  - id: implement
+    depends_on: [epic-approval]
+    loop:
+      prompt: |
+        Lies ISSUE_MAP.md. Wähle das nächste noch offene Subtask-Issue
+        (per `gh issue list --repo sergey-wagner/records --state open`
+        gegen die Liste abgleichen). Implementiere genau diesen Subtask,
+        füge passende Tests hinzu, führe `python -m pytest tests/ -v` aus,
+        und committe mit einer Message, die auf die Issue-Nummer verweist
+        (z. B. "Add context manager support to Database (refs #N)").
+      until: ALL_SUBTASKS_COMPLETE
+      fresh_context: true
+
+  - id: run-tests
+    depends_on: [implement]
+    bash: "python -m pytest tests/ -v"
+
+  - id: review
+    depends_on: [run-tests]
+    prompt: |
+      Vergleiche den finalen Diff gegen EPIC_PLAN.md und ISSUE_MAP.md.
+      Stelle sicher, dass jeder Subtask tatsächlich umgesetzt und getestet
+      wurde, und dass HISTORY.rst einen zusammenfassenden Eintrag für das
+      gesamte Epic enthält.
+
+  - id: approve
+    depends_on: [review]
+    loop:
+      prompt: |
+        Präsentiere eine Zusammenfassung aller umgesetzten Subtasks, den
+        vollständigen Diff und die Testergebnisse für die finale
+        menschliche Freigabe vor dem PR.
+      until: APPROVED
+      interactive: true
+
+  - id: create-pr
+    depends_on: [approve]
+    prompt: |
+      Push den Branch und erstelle einen Pull-Request GEGEN
+      sergey-wagner/records (--base master), NICHT gegen
+      kennethreitz/records. Titel: "Modernize Database API: context
+      manager + type hints". Body muss jeden Subtask auflisten und
+      "Closes #X" für jede Subtask-Issue-Nummer aus ISSUE_MAP.md sowie die
+      Epic-Issue-Nummer enthalten.
