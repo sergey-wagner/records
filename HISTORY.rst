@@ -1,3 +1,10 @@
+Unreleased
+==========
+
+- Fix ``openpyxl`` dependency pin (``openpyxl>=2.6.0``, no upper bound)
+  to resolve the Excel export conflict between ``records`` and newer
+  ``pandas`` releases (#212, #206).
+
 v0.6.0 (04-29-2024)
 ===================
 

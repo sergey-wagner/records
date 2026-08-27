@@ -12,8 +12,12 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    # ubuntu-latest (24.04) dropped prebuilt Python 3.7 packages, so pin
+    # that leg to 22.04 (still published in actions/python-versions) and
+    # let the rest float on ubuntu-latest as before.
+    runs-on: ${{ matrix.python-version == '3.7' && 'ubuntu-22.04' || 'ubuntu-latest' }}
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
@@ -29,6 +33,31 @@ jobs:
 
     - name: Install dependencies
       run: pip install -r requirements.txt
+
+    - name: Test with pytest
+      run: pytest
+
+  pandas-compat:
+    # Regression guard for #142/#206/#212: installs records[pandas]
+    # alongside a current pandas release in the same environment and
+    # runs the suite against that combination, so a future pin
+    # divergence is caught here instead of by users.
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Install records[pandas] with a current pandas release
+      run: pip install ".[pandas]" "pandas>=1.2.4"
 
     - name: Test with pytest
       run: pytest
