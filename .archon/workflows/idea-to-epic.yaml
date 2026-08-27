@@ -4,6 +4,8 @@
 # iterativer Implementierung — testet den Anfang der SDLC-Kette, nicht nur
 # das Abarbeiten eines vorgegebenen Issues.
 
+name: idea-to-epic
+interactive: true
 description: >
   Zerlegt eine Feature-Idee in ein Epic mit Subtasks, erstellt echte GitHub
   Issues dafür, lässt den Menschen die Planung freigeben, implementiert dann
@@ -48,7 +50,12 @@ nodes:
         geschrieben wird. Das ist die wichtigste Weiche im gesamten
         Workflow — hier wird über den Zuschnitt der Arbeit entschieden.
       until: APPROVED
+      max_iterations: 5
       interactive: true
+      gate_message: |
+        Epic-Plan und Issues stehen bereit (siehe EPIC_PLAN.md / ISSUE_MAP.md
+        oben). Antworte mit APPROVED zum Fortfahren, oder mit Feedback zur
+        Überarbeitung.
 
   - id: implement
     depends_on: [epic-approval]
@@ -61,6 +68,7 @@ nodes:
         und committe mit einer Message, die auf die Issue-Nummer verweist
         (z. B. "Add context manager support to Database (refs #N)").
       until: ALL_SUBTASKS_COMPLETE
+      max_iterations: 10
       fresh_context: true
 
   - id: run-tests
@@ -83,7 +91,11 @@ nodes:
         vollständigen Diff und die Testergebnisse für die finale
         menschliche Freigabe vor dem PR.
       until: APPROVED
+      max_iterations: 5
       interactive: true
+      gate_message: |
+        Zusammenfassung, Diff und Testergebnisse stehen oben. Antworte mit
+        APPROVED zum Erstellen des PRs, oder mit Feedback zur Überarbeitung.
 
   - id: create-pr
     depends_on: [approve]
