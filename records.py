@@ -6,7 +6,7 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from inspect import isclass
 from types import TracebackType
-from typing import Any, Dict, Iterator, List, Optional, Type, Union, overload
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Type, Union, overload
 from typing import OrderedDict as TOrderedDict
 
 import tablib
@@ -33,7 +33,7 @@ class Record(object):
 
     __slots__ = ("_keys", "_values")
 
-    def __init__(self, keys: Any, values: List[Any]) -> None:
+    def __init__(self, keys: Any, values: Sequence[Any]) -> None:
         self._keys = keys
         self._values = values
 
@@ -44,7 +44,7 @@ class Record(object):
         """Returns the list of column names from the query."""
         return self._keys
 
-    def values(self) -> List[Any]:
+    def values(self) -> Sequence[Any]:
         """Returns the list of values from the query."""
         return self._values
 
