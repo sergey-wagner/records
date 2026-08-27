@@ -57,8 +57,13 @@ nodes:
         sie JETZT um (z. B. Repo-Einstellungen ändern, Issues anlegen),
         BEVOR du erneut präsentierst. Wiederhole nicht einfach dieselbe
         Frage, wenn der Mensch bereits geantwortet hat.
+
+        Wenn $LOOP_USER_INPUT bereits "APPROVED" enthält UND der Plan seit
+        deiner letzten Präsentation inhaltlich unverändert ist (also nichts
+        mehr zu tun bleibt), gib zusätzlich zu deiner Zusammenfassung genau
+        <promise>APPROVED</promise> aus, um fortzufahren.
       until: APPROVED
-      max_iterations: 5
+      max_iterations: 8
       interactive: true
       gate_message: |
         Epic-Plan und Issues stehen bereit (siehe EPIC_PLAN.md / ISSUE_MAP.md
@@ -104,8 +109,13 @@ nodes:
 
         Falls das Feedback Änderungswünsche enthält, setze sie JETZT um,
         bevor du erneut präsentierst.
+
+        Wenn $LOOP_USER_INPUT bereits "APPROVED" enthält UND seit deiner
+        letzten Präsentation nichts mehr offen ist, gib zusätzlich zu
+        deiner Zusammenfassung genau <promise>APPROVED</promise> aus, um
+        fortzufahren.
       until: APPROVED
-      max_iterations: 5
+      max_iterations: 8
       interactive: true
       gate_message: |
         Zusammenfassung, Diff und Testergebnisse stehen oben. Antworte mit
