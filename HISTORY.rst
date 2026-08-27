@@ -5,6 +5,9 @@ Unreleased
   by ``Database.query()`` and ``Database.query_file()``) now actually closes
   the underlying connection when an exception propagates out of a ``with``
   block, instead of leaking it. The success path is unchanged.
+- ``Database``, ``Connection``, ``Record``, and ``RecordCollection`` now have
+  complete inline type hints on their public API, for IDE autocomplete and
+  static type checkers (mypy, pyright). No behavior change.
 
 v0.6.0 (04-29-2024)
 ===================
