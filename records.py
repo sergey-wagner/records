@@ -30,14 +30,14 @@ class Record(object):
 
     __slots__ = ("_keys", "_values")
 
-    def __init__(self, keys: Sequence[Any], values: Sequence[Any]) -> None:
+    def __init__(self, keys: Any, values: Sequence[Any]) -> None:
         self._keys = keys
         self._values = values
 
         # Ensure that lengths match properly.
         assert len(self._keys) == len(self._values)
 
-    def keys(self) -> Sequence[Any]:
+    def keys(self) -> Any:
         """Returns the list of column names from the query."""
         return self._keys
 
