@@ -74,12 +74,20 @@ nodes:
     depends_on: [epic-approval]
     loop:
       prompt: |
-        Lies ISSUE_MAP.md. Wähle das nächste noch offene Subtask-Issue
-        (per `gh issue list --repo sergey-wagner/records --state open`
-        gegen die Liste abgleichen). Implementiere genau diesen Subtask,
-        füge passende Tests hinzu, führe `python -m pytest tests/ -v` aus,
-        und committe mit einer Message, die auf die Issue-Nummer verweist
+        Lies ISSUE_MAP.md. Prüfe für jedes Subtask-Issue aus ISSUE_MAP.md,
+        ob bereits ein passender Commit auf diesem Branch existiert (per
+        `git log --oneline`), NICHT nur den `gh issue`-Open/Closed-Status
+        (Issues werden hier erst beim finalen PR geschlossen).
+
+        Falls noch ein Subtask ohne Commit übrig ist: wähle das nächste
+        unabhängig umsetzbare davon, implementiere genau dieses, füge
+        passende Tests hinzu, führe `python -m pytest tests/ -v` aus, und
+        committe mit einer Message, die auf die Issue-Nummer verweist
         (z. B. "Add context manager support to Database (refs #N)").
+
+        Falls JEDES Subtask-Issue aus ISSUE_MAP.md bereits einen Commit auf
+        diesem Branch hat: implementiere NICHTS weiter und gib genau
+        <promise>ALL_SUBTASKS_COMPLETE</promise> aus.
       until: ALL_SUBTASKS_COMPLETE
       max_iterations: 10
       fresh_context: true
